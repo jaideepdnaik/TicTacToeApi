@@ -1,0 +1,87 @@
+### TicTacToe API Test Requests
+
+@baseUrl = https://localhost:7076
+@gameId = {{CreateGame.response.body.gameId}}
+
+### Create a new game
+POST {{baseUrl}}/api/games
+Content-Type: application/json
+
+### Get all games
+GET {{baseUrl}}/api/games
+
+### Get a specific game
+GET {{baseUrl}}/api/games/{{gameId}}
+
+### Make a move - Player X
+POST {{baseUrl}}/api/games/{{gameId}}/moves
+Content-Type: application/json
+
+{
+  "player": "X",
+  "row": 0,
+  "column": 0
+}
+
+### Make a move - Player O
+POST {{baseUrl}}/api/games/{{gameId}}/moves
+Content-Type: application/json
+
+{
+  "player": "O",
+  "row": 0,
+  "column": 1
+}
+
+### Make another move - Player X
+POST {{baseUrl}}/api/games/{{gameId}}/moves
+Content-Type: application/json
+
+{
+  "player": "X",
+  "row": 1,
+  "column": 1
+}
+
+### Make another move - Player O
+POST {{baseUrl}}/api/games/{{gameId}}/moves
+Content-Type: application/json
+
+{
+  "player": "O",
+  "row": 0,
+  "column": 2
+}
+
+### Make winning move - Player X
+POST {{baseUrl}}/api/games/{{gameId}}/moves
+Content-Type: application/json
+
+{
+  "player": "X",
+  "row": 2,
+  "column": 2
+}
+
+### Delete a game
+DELETE {{baseUrl}}/api/games/{{gameId}}
+
+### Test invalid move (out of bounds)
+POST {{baseUrl}}/api/games/{{gameId}}/moves
+Content-Type: application/json
+
+{
+  "player": "X",
+  "row": 5,
+  "column": 5
+}
+
+### Test invalid move (wrong player)
+POST {{baseUrl}}/api/games/{{gameId}}/moves
+Content-Type: application/json
+
+{
+  "player": "O",
+  "row": 0,
+  "column": 0
+}
