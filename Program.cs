@@ -16,7 +16,7 @@ builder.Services.AddCors(options =>
         });
 });
 
-builder.Services.AddScoped<IGameService, GameService>();
+builder.Services.AddSingleton<IGameService, GameService>();
 
 var app = builder.Build();
 
