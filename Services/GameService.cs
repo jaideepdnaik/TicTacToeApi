@@ -9,7 +9,12 @@ public class GameService : IGameService
         var gameState = new GameState
         {
             GameId = gameId,
-            Board = new string[3, 3],
+            Board = new string[3][]
+            {
+                new string[3],
+                new string[3],
+                new string[3]
+            },
             CurrentPlayer = "X",
             Winner = string.Empty,
             IsGameOver = false,
@@ -59,7 +64,7 @@ public class GameService : IGameService
             };
         }
 
-        gameState.Board[move.Row, move.Column] = gameState.CurrentPlayer;
+        gameState.Board[move.Row][move.Column] = gameState.CurrentPlayer;
 
         gameState.LastMoveAt = DateTime.UtcNow;
 
@@ -86,43 +91,43 @@ public class GameService : IGameService
         };
     }
 
-    private bool IsValidMove(string[,] board, Move move)
+    private bool IsValidMove(string[][] board, Move move)
     {
-        return move.Row >= 0 && move.Row < 3 && move.Column >= 0 && move.Column < 3 && string.IsNullOrEmpty(board[move.Row, move.Column]);
+        return move.Row >= 0 && move.Row < 3 && move.Column >= 0 && move.Column < 3 && string.IsNullOrEmpty(board[move.Row][move.Column]);
     }
 
     private bool CheckForWinner(GameState gameState, int row, int column)
     {
-        var player = gameState.Board[row, column];
+        var player = gameState.Board[row][column];
         if (string.IsNullOrEmpty(player)) return false;
 
         // Check row
-        if (gameState.Board[row, 0] == player && gameState.Board[row, 1] == player && gameState.Board[row, 2] == player)
+        if (gameState.Board[row][0] == player && gameState.Board[row][1] == player && gameState.Board[row][2] == player)
             return true;
 
         // Check column
-        if (gameState.Board[0, column] == player && gameState.Board[1, column] == player && gameState.Board[2, column] == player)
+        if (gameState.Board[0][column] == player && gameState.Board[1][column] == player && gameState.Board[2][column] == player)
             return true;
 
         // Check diagonals
         if (row == column)
         {
-            if (gameState.Board[0, 0] == player && gameState.Board[1, 1] == player && gameState.Board[2, 2] == player)
+            if (gameState.Board[0][0] == player && gameState.Board[1][1] == player && gameState.Board[2][2] == player)
                 return true;
         }
 
         if (row + column == 2)
         {
-            if (gameState.Board[0, 2] == player && gameState.Board[1, 1] == player && gameState.Board[2, 0] == player)
+            if (gameState.Board[0][2] == player && gameState.Board[1][1] == player && gameState.Board[2][0] == player)
                 return true;
         }
 
         return false;
     }
 
-    private bool IsBoardFull(string[,] board)
+    private bool IsBoardFull(string[][] board)
     {
-        return !board.Cast<string>().Any(string.IsNullOrEmpty);
+        return !board.SelectMany(row => row).Any(string.IsNullOrEmpty);
     }
 
     private string GetNextPlayer(GameState gameState)
