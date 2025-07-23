@@ -31,6 +31,73 @@ public class GamesController : ControllerBase
         }
     }
 
+    [HttpGet("multiplayer/available")]
+    public ActionResult<List<GameState>> GetAvailableMultiplayerGames()
+    {
+        try
+        {
+            var games = _gameService.GetAvailableMultiplayerGames();
+            _logger.LogInformation("Retrieved {GameCount} available multiplayer games", games.Count);
+            return Ok(games);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving available multiplayer games");
+            return StatusCode(500, "An error occurred while retrieving available games");
+        }
+    }
+
+    [HttpPost("multiplayer")]
+    public ActionResult<GameState> CreateMultiplayerGame([FromBody] CreateGameRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.PlayerName))
+            {
+                return BadRequest("Player name cannot be empty");
+            }
+
+            var gameState = _gameService.CreateMultiplayerGame(request.PlayerId, request.PlayerName);
+            _logger.LogInformation("New multiplayer game created with ID: {GameId}", gameState.GameId);
+            return CreatedAtAction(nameof(GetGame), new { gameId = gameState.GameId }, gameState);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating new multiplayer game");
+            return StatusCode(500, "An error occurred while creating the game");
+        }
+    }
+
+    [HttpPost("{gameId}/join")]
+    public ActionResult JoinGame(string gameId, [FromBody] JoinGameRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(gameId))
+            {
+                return BadRequest("Game ID cannot be empty");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.PlayerName))
+            {
+                return BadRequest("Player name cannot be empty");
+            }
+
+            var success = _gameService.JoinMultiplayerGame(gameId, request.PlayerId, request.PlayerName);
+            if (!success)
+            {
+                return BadRequest("Cannot join game");
+            }
+
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error joining game {GameId}", gameId);
+            return StatusCode(500, "An error occurred while joining the game");
+        }
+    }
+
     [HttpGet]
     public ActionResult<List<GameState>> GetAllGames()
     {

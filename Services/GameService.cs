@@ -19,12 +19,109 @@ public class GameService : IGameService
             Winner = string.Empty,
             IsGameOver = false,
             CreatedAt = DateTime.UtcNow,
-            LastMoveAt = DateTime.UtcNow
+            LastMoveAt = DateTime.UtcNow,
+            Mode = GameMode.SinglePlayer
         };
 
         _games[gameId] = gameState;
 
         return gameState;
+    }
+
+    public GameState CreateMultiplayerGame(string playerId, string playerName)
+    {
+        var gameState = new GameState
+        {
+            GameId = Guid.NewGuid().ToString(),
+            Board =
+            [
+                new string[3],
+                new string[3],
+                new string[3]
+            ],
+            CurrentPlayer = "X",
+            Winner = string.Empty,
+            IsGameOver = false,
+            CreatedAt = DateTime.UtcNow,
+            LastMoveAt = DateTime.UtcNow,
+            Mode = GameMode.Multiplayer
+        };
+
+        var player = new Player
+        {
+            Id = playerId,
+            Name = playerName,
+            Symbol = "X",
+            IsConnected = true
+        };
+
+        gameState.Players.Add(player);
+        gameState.CurrentPlayerTurn = playerId;
+
+        _games[gameState.GameId] = gameState;
+        return gameState;
+    }
+
+    public bool JoinMultiplayerGame(string gameId, string playerId, string playerName)
+    {
+        if (!_games.TryGetValue(gameId, out var gameState))
+            return false;
+
+        if (gameState.Mode != GameMode.Multiplayer)
+            return false;
+
+        if (gameState.Players.Count >= 2)
+            return false;
+
+        if (gameState.Players.Any(p => p.Id == playerId))
+            return true; // Already in game
+
+        var player = new Player
+        {
+            Id = playerId,
+            Name = playerName,
+            Symbol = "O", // Second player gets O
+            IsConnected = true
+        };
+
+        gameState.Players.Add(player);
+        gameState.LastMoveAt = DateTime.UtcNow;
+
+        return true;
+    }
+
+    public bool LeaveGame(string gameId, string playerId)
+    {
+        if (!_games.TryGetValue(gameId, out var gameState))
+            return false;
+
+        var player = gameState.Players.FirstOrDefault(p => p.Id == playerId);
+        if (player == null)
+            return false;
+
+        player.IsConnected = false;
+        return true;
+    }
+
+    public void HandlePlayerDisconnection(string playerId)
+    {
+        foreach (var game in _games.Values)
+        {
+            var player = game.Players.FirstOrDefault(p => p.Id == playerId);
+            if (player != null)
+            {
+                player.IsConnected = false;
+            }
+        }
+    }
+
+    public List<GameState> GetAvailableMultiplayerGames()
+    {
+        return _games.Values
+            .Where(g => g.Mode == GameMode.Multiplayer && 
+                       g.IsWaitingForPlayer && 
+                       !g.IsGameOver)
+            .ToList();
     }
 
     public GameState? GetGame(string gameId)
@@ -44,50 +141,112 @@ public class GameService : IGameService
             };
         }
 
-        // Use IsValidMove helper method for comprehensive validation
-        if (!IsValidMove(gameState.Board, move))
+        // For multiplayer games, validate turn
+        if (gameState.Mode == GameMode.Multiplayer)
         {
-            return new GameResponse
+            if (gameState.CurrentPlayerTurn != move.Player)
             {
-                Success = false,
-                Message = "Invalid move. Cell is occupied or coordinates are out of bounds."
-            };
-        }
+                return new GameResponse
+                {
+                    Success = false,
+                    Message = "Not your turn"
+                };
+            }
 
-        // Additional validation: Check if it's the correct player's turn
-        if (move.Player != gameState.CurrentPlayer)
-        {
-            return new GameResponse
+            var player = gameState.Players.FirstOrDefault(p => p.Id == move.Player);
+            if (player == null)
             {
-                Success = false,
-                Message = $"It's player {gameState.CurrentPlayer}'s turn."
-            };
-        }
+                return new GameResponse
+                {
+                    Success = false,
+                    Message = "Player not in this game"
+                };
+            }
 
-        gameState.Board[move.Row][move.Column] = gameState.CurrentPlayer;
+            // Use player's symbol instead of move.Player
+            var playerSymbol = player.Symbol;
+            
+            // Use IsValidMove helper method for comprehensive validation
+            if (!IsValidMove(gameState.Board, move))
+            {
+                return new GameResponse
+                {
+                    Success = false,
+                    Message = "Invalid move. Cell is occupied or coordinates are out of bounds."
+                };
+            }
 
-        gameState.LastMoveAt = DateTime.UtcNow;
+            gameState.Board[move.Row][move.Column] = playerSymbol;
+            gameState.LastMoveAt = DateTime.UtcNow;
 
-        if (CheckForWinner(gameState, move.Row, move.Column))
-        {
-            gameState.Winner = gameState.CurrentPlayer;
-            gameState.IsGameOver = true;
-        }
-        else if (IsBoardFull(gameState.Board))
-        {
-            gameState.Winner = "Draw";
-            gameState.IsGameOver = true;
+            if (CheckForWinner(gameState, move.Row, move.Column))
+            {
+                gameState.Winner = playerSymbol;
+                gameState.IsGameOver = true;
+            }
+            else if (IsBoardFull(gameState.Board))
+            {
+                gameState.Winner = "Draw";
+                gameState.IsGameOver = true;
+                gameState.IsDraw = true;
+            }
+            else
+            {
+                // Update turn for multiplayer
+                var otherPlayer = gameState.Players.FirstOrDefault(p => p.Id != gameState.CurrentPlayerTurn);
+                gameState.CurrentPlayerTurn = otherPlayer?.Id;
+                gameState.CurrentPlayer = otherPlayer?.Symbol ?? gameState.CurrentPlayer;
+            }
         }
         else
         {
-            gameState.CurrentPlayer = GetNextPlayer(gameState);
+            // Single player game logic (existing)
+            // Use IsValidMove helper method for comprehensive validation
+            if (!IsValidMove(gameState.Board, move))
+            {
+                return new GameResponse
+                {
+                    Success = false,
+                    Message = "Invalid move. Cell is occupied or coordinates are out of bounds."
+                };
+            }
+
+            // Additional validation: Check if it's the correct player's turn
+            if (move.Player != gameState.CurrentPlayer)
+            {
+                return new GameResponse
+                {
+                    Success = false,
+                    Message = $"It's player {gameState.CurrentPlayer}'s turn."
+                };
+            }
+
+            gameState.Board[move.Row][move.Column] = gameState.CurrentPlayer;
+            gameState.LastMoveAt = DateTime.UtcNow;
+
+            if (CheckForWinner(gameState, move.Row, move.Column))
+            {
+                gameState.Winner = gameState.CurrentPlayer;
+                gameState.IsGameOver = true;
+            }
+            else if (IsBoardFull(gameState.Board))
+            {
+                gameState.Winner = "Draw";
+                gameState.IsGameOver = true;
+                gameState.IsDraw = true;
+            }
+            else
+            {
+                gameState.CurrentPlayer = GetNextPlayer(gameState);
+            }
         }
 
         return new GameResponse
         {
             Success = true,
             Message = "Move made successfully.",
-            Game = gameState
+            Game = gameState,
+            GameState = gameState
         };
     }
 

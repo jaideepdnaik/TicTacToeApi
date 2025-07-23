@@ -1,9 +1,14 @@
+using TicTacToeApi.Hubs;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Add SignalR
+builder.Services.AddSignalR();
 
 builder.Services.AddCors(options =>
 {
@@ -13,6 +18,15 @@ builder.Services.AddCors(options =>
             policy.AllowAnyOrigin()
                    .AllowAnyMethod()
                    .AllowAnyHeader();
+        });
+    
+    options.AddPolicy("SignalRPolicy",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:3000", "https://localhost:3000") // Add your frontend URLs
+                   .AllowAnyMethod()
+                   .AllowAnyHeader()
+                   .AllowCredentials(); // Required for SignalR
         });
 });
 
@@ -29,8 +43,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors("AllowAllOrigins");
+app.UseCors("SignalRPolicy");
 
 app.MapControllers();
+
+// Map SignalR Hub
+app.MapHub<GameHub>("/gameHub");
 
 app.Run();
