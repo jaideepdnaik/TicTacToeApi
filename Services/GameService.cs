@@ -9,12 +9,12 @@ public class GameService : IGameService
         var gameState = new GameState
         {
             GameId = gameId,
-            Board = new string[3][]
-            {
+            Board =
+            [
                 new string[3],
                 new string[3],
                 new string[3]
-            },
+            ],
             CurrentPlayer = "X",
             Winner = string.Empty,
             IsGameOver = false,
